@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>学习笔记</title>
+<meta name="description" content="把散着的东西，一件件拆开重新装回去。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<meta property="og:title" content="学习笔记">
+<meta property="og:description" content="把散着的东西，一件件拆开重新装回去。">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="assets/style.css">
+
+</head><body>
+<header class="site"><div class="wrap">
+  <a class="brand" href="index.html">NOTES</a>
+  <nav><a href="index.html" class=on>笔记</a><a href="map.html">图谱</a><a href="about.html">关于</a></nav>
+</div></header>
+
+<div class="wrap hero"><div class="col">
+  <h1>把散着的东西，一件件拆开重新装回去。</h1>
+  <p>每篇笔记都从一个我答不上来的问题开始，做实验、画图、写清楚为止。不写综述，不抄结论。</p>
+</div></div>
+<div class="wrap" style="padding-bottom:5rem"><section class="col"><h4>VLA 主线</h4><p class="series-desc">从注意力一路走到 π0.5，每站解决上一站留下的一个具体问题。</p><a class="entry" href="notes/rn01-attention/index.html"><span class="num">VLA 主线 / 01</span><h2>注意力：为什么 CNN 和 RNN 不够用</h2><p>搜到的说法是「CNN 感受野受限、RNN 梯度衰减」。我想直接跑个实验看看，到底是怎么不够用的。</p><span class="meta">attention · cnn · rnn · 梯度</span></a><details class="queue"><summary>还没写的 11 篇</summary><ol><li><span class="num">02</span><b>Transformer Block</b><span>纯注意力会秩坍缩，FFN 和残差各自在挡哪一半。</span></li><li><span class="num">03</span><b>自回归与 GPT</b><span>怎么从一个 block 变成会生成的模型。</span></li><li><span class="num">04</span><b>图像如何变成 token</b><span>ViT / CLIP / SigLIP 是三种答案。</span></li><li><span class="num">05</span><b>token 如何进入 LLM</b><span>projector 和 cross-attention 是两条独立的轴。</span></li><li><span class="num">06</span><b>模仿学习与动作表示</b><span>问题本身长什么样：多模态、连续、有时序。</span></li><li><span class="num">07</span><b>扩散模型基础</b><span>怎么把一个分布学下来，而不是学一个平均值。</span></li><li><span class="num">08</span><b>Diffusion Policy</b><span>把扩散接到动作上，多模态才没被平均掉。</span></li><li><span class="num">09</span><b>Flow Matching</b><span>同一个分布，把采样步数压下来。</span></li><li><span class="num">10</span><b>π0</b><span>前面所有零件第一次拼到一起。</span></li><li><span class="num">11</span><b>RDT2</b><span>另一条路线，同一个问题。</span></li><li><span class="num">12</span><b>π0.5</b><span>泛化靠的是数据配方，不是结构。</span></li></ol></details></section></div>
+<footer class="site"><div class="wrap">© Mark · 用实验和图把问题讲清楚</div></footer>
+
+</body></html>

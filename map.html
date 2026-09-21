@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>图谱 · 学习笔记</title>
+<meta name="description" content="把散着的东西，一件件拆开重新装回去。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<meta property="og:title" content="图谱 · 学习笔记">
+<meta property="og:description" content="把散着的东西，一件件拆开重新装回去。">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="assets/style.css">
+
+</head><body>
+<header class="site"><div class="wrap">
+  <a class="brand" href="index.html">NOTES</a>
+  <nav><a href="index.html">笔记</a><a href="map.html" class=on>图谱</a><a href="about.html">关于</a></nav>
+</div></header>
+
+<div class="wrap post-head"><div class="col">
+  <div class="eyebrow">MAP</div>
+  <h1 class="title">笔记之间怎么连</h1>
+  <p class="lede">箭头是有向的：从「得先读这篇」指向「然后才好读这篇」。
+  点任意一个节点会把视野收到它的直接上下游，再点一次放开。</p>
+</div></div>
+<div class="wrap map-wrap">
+  <div class="map-toolbar">
+    <span class="map-hint">hover 看上下游 · 点击锁定 · 拖动摆位置 · 滚轮缩放</span>
+  </div>
+  <div id="stage"><svg id="graph"></svg><div id="tip"></div></div>
+  <div id="panel" class="map-panel" hidden></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="assets/map.js"></script>
+<footer class="site"><div class="wrap">© Mark · 用实验和图把问题讲清楚</div></footer>
+
+</body></html>

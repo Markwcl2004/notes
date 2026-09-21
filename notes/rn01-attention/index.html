@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>注意力：为什么 CNN 和 RNN 不够用 · NOTES</title>
+<meta name="description" content="把散着的东西，一件件拆开重新装回去。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta property="og:title" content="注意力：为什么 CNN 和 RNN 不够用 · NOTES">
+<meta property="og:description" content="搜到的说法是「CNN 感受野受限、RNN 梯度衰减」。我想直接跑个实验看看，到底是怎么不够用的。">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+</head><body>
+<header class="site"><div class="wrap">
+  <a class="brand" href="../../index.html">NOTES</a>
+  <nav><a href="../../index.html" class=on>笔记</a><a href="../../map.html">图谱</a><a href="../../about.html">关于</a></nav>
+</div></header>
+
+<div class="wrap post-head"><div class="col">
+  <div class="eyebrow">VLA 主线 · 01</div>
+  <h1 class="title">注意力：为什么 CNN 和 RNN 不够用</h1>
+  <p class="lede">搜到的说法是「CNN 感受野受限、RNN 梯度衰减」。我想直接跑个实验看看，到底是怎么不够用的。</p>
+  <div class="byline"><span>2026-09</span><span>attention · cnn · rnn · 梯度</span></div>
+</div></div>
+<nav class="toc" aria-label="目录"><a href="#why-attention" class="">Why Attention？</a><a href="#cnn-处理此序列的情况" class="lv3">CNN 处理此序列的情况</a><a href="#rnn-处理此序列的情况" class="lv3">RNN 处理此序列的情况</a><a href="#attention-处理此序列的情况" class="lv3">Attention 处理此序列的情况</a><a href="#小结" class="">小结</a></nav>
+<article class="wrap"><div class="col">
+<h2 id="why-attention">Why Attention？</h2>
+<p>当我去搜索为什么需要Attention的时候，搜到的回答是：</p>
+<blockquote>
+<p>“模型处理的数据通常是序列，文本是词的序列，而序列中的远距离通信是必要的，模型需要一个工具去捕捉序列中这种关系”，“Attention在这个方面取代了CNN和RNN”<br/>
+“CNN局限在于，如果要让很远的两个元素之间进行通信，他需要很高的层数去实现，其感受野受限”<br/>
+“RNN局限在于，信息沿时间步逐步传递，早期信息传到后面会逐渐"衰减"（梯度消失）。”</p>
+</blockquote>
+<p>我想直接地做一个CNN和RNN的简单实验来仔细看看这个问题，也许并不需要完整训练一个model来测试这件事情。</p>
+<blockquote>
+<p>粗略看各种网络，无非就是前向传播算 loss、反向传梯度、更新权重。那么如果序列里两个远距离元素之间能被model 学到联系，最起码输出端那个位置对输入端那个位置的梯度不能是 0。毕竟梯度是 0 就意味着这条通路根本不存在，怎么训都没用。</p>
+</blockquote>
+<p>例句：<strong>很高兴认识你爱玩的茂茂雨</strong><br/>
+切成 4 个词：<code>很高兴</code> 、<code>认识你</code> 、<code>爱玩的</code> 、<code>茂茂雨</code><br/>
+每个词用一个 2 维向量表示（随便像下面这样设一个），整句话就是一个 <strong>4 × 2 的矩阵</strong>:</p>
+<figure class="inset"><img alt="01_x_matrix.png" height="1037" loading="lazy" src="../../assets/img/rn01-attention/01_x_matrix.png" width="931"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<h3 id="cnn-处理此序列的情况">CNN 处理此序列的情况</h3>
+<p>但 PyTorch 的 <code>Conv1d</code> 要的是 <code>(batch, 每个词的向量维度, 词的个数)</code>，<strong>需要转置一下</strong>。卷积核设为 <code>conv = nn.Conv1d(n, n, kernel_size=3, padding=1, bias=False)</code></p>
+<blockquote>
+<p>第一个 n 是 in_channels，输入每个位置有几维（这里 2 维，窗口里每列的 2 个数一起吃进去）。<br/>
+第二个 n 是 out_channels，输出每个位置有几维，等于“用几个核”。<br/>
+kernel_size=3：窗口一次盖 3 个位置。<br/>
+padding=1：两端各补 1 列 0，让 4 个词进、还是 4 个数出。<br/>
+bias=False：算完不再加常数项。</p>
+</blockquote>
+<figure class=""><img alt="01_conv_walkthrough.png" height="1808" loading="lazy" src="../../assets/img/rn01-attention/01_conv_walkthrough.png" width="1321"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class=""><img alt="04_number_tower.png" height="2060" loading="lazy" src="../../assets/img/rn01-attention/04_number_tower.png" width="1572"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<p>如果你同时关注一下<code>第二层的“10”</code>和<code>第三层的“3”</code>，往回追溯，你就会发现<code>第二层的“10”</code>仅包含了<code>认识你</code> 、<code>爱玩的</code> 、<code>茂茂雨</code>，而只有到<code>第三层的“3”</code>才完全得到了这组序列的全部信息。</p>
+<p><strong>在这个场景下，感受野和梯度能否传达其实是一回事</strong>。<code>很高兴</code> 不在 <code>茂茂雨</code> 的感受野里，意思就是不管 <code>很高兴</code> 怎么改，<code>茂茂雨</code> 那个输出都纹丝不动——这正是“梯度等于 0”。所以 CNN 的痛点就在于“<strong>层数低，感受野小，够不到</strong>”。</p>
+<p>但反过来不成立：够得到不等于传得动。下面的 RNN 就是够得到但传不动的典型。<br/>
+然而，想要层数少，就得增加卷积核的大小。那放到真实规模上是个什么概念？按 GPT-2 那种配置粗算一下：序列 2048 个词、词向量 768 维、核宽还是 3。<strong>感受野每层只往外扩 1 个词，要够到最远那一个得堆 1024 层</strong>，参数量约 18 亿、一次前向约 $3.7\times10^{12}$ 次乘加。</p>
+<h3 id="rnn-处理此序列的情况">RNN 处理此序列的情况</h3>
+<p>看一下RNN的网络结构：</p>
+<figure class="inset"><img alt="00_rnn_overview.png" height="1678" loading="lazy" src="../../assets/img/rn01-attention/00_rnn_overview.png" width="1246"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<p>这是个很漂亮的结构，而且通过一个循环迭代的方式，就能将词与词之间的联系训练更新到同一套反复使用参数$W_x$和$W_h$里面，<br/>
+真实推理的时候，只需要一份 RNN 单元，加上一个来自上一个词的记忆缓存就够了。发现它还有一个问题：batch 维度其实是能并行的，不能并行的是<strong>时间步</strong>——第 $t$ 步必须等第 $t-1$ 步的 $h$ 算完才能开始。句子多长就得串行多少步，GPU 在这件事上使不上劲。<br/>
+再看看前面搜到的“信息衰减”是怎么回事，瞅一眼 $\tanh$ 及其导数的图像：</p>
+<figure class=""><img alt="03_tanh_squash.png" height="2402" loading="lazy" src="../../assets/img/rn01-attention/03_tanh_squash.png" width="1767"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class=""><img alt="01_one_step.png" height="1943" loading="lazy" src="../../assets/img/rn01-attention/01_one_step.png" width="1397"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="wide"><img alt="02_unroll.png" height="1365" loading="lazy" src="../../assets/img/rn01-attention/02_unroll.png" width="1662"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+在以上这个例子的计算当中，可以看出当出现接近+-1的h数值时，会得到一个非常小的导数值0.015，但是好像也没有小到会让信息损失🤔，进一步看看反向传播时候的计算情况：
+先把用到的符号列一下，免得自己都看糊涂。
+
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>符号</th>
+<th>是什么</th>
+<th>形状</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$t$</td>
+<td>第几个词，这里 0 ~ 3</td>
+<td>—</td>
+</tr>
+<tr>
+<td>$x_t$</td>
+<td>第 $t$ 个词的词向量</td>
+<td>2 维</td>
+</tr>
+<tr>
+<td>$h_t$</td>
+<td>读完前 $t+1$ 个词之后的「记忆」，$h_{-1}=0$</td>
+<td>2 维</td>
+</tr>
+<tr>
+<td>$\text{pre}_t$</td>
+<td>进 $\tanh$ 之前的中间值</td>
+<td>2 维</td>
+</tr>
+<tr>
+<td>$W_x$</td>
+<td>把当前这个词收进记忆空间，<strong>每步都是同一个</strong></td>
+<td>2 × 2</td>
+</tr>
+<tr>
+<td>$W_h$</td>
+<td>把上一步的记忆搅拌一下，<strong>每步都是同一个</strong></td>
+<td>2 × 2</td>
+</tr>
+<tr>
+<td>$L$</td>
+<td>loss，一个标量，具体形式先不管</td>
+<td>标量</td>
+</tr>
+<tr>
+<td>$\partial L / \partial h_t$</td>
+<td>loss 对 $h_t$ 的梯度，形状和 $h_t$ 一样</td>
+<td>2 维</td>
+</tr>
+<tr>
+<td>$\odot$</td>
+<td>逐元素相乘（不是矩阵乘）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>$\mathrm{diag}(a, b)$</td>
+<td>把两个数摆到对角线上的矩阵</td>
+<td>2 × 2</td>
+</tr>
+<tr>
+<td>$\lVert \cdot \rVert$</td>
+<td>向量的长度（模）</td>
+<td>标量</td>
+</tr>
+</tbody>
+</table></div>
+<p>前向就两行：</p>
+<p>$$\text{pre}_t = W_x x_t + W_h h_{t-1}, \qquad h_t = \tanh(\text{pre}_t)$$</p>
+<p>反向每往回一步做这一下：</p>
+<p>$$\frac{\partial L}{\partial \text{pre}_t}
+= \frac{\partial L}{\partial h_t}\frac{\partial h_t}{\partial \text{pre}_t}
+= \frac{\partial L}{\partial h_t}\,\mathrm{diag}\big(\tanh'(\text{pre}_t)\big)
+= \frac{\partial L}{\partial h_t} \odot \big(1 - h_t^2\big)$$</p>
+<p>三个等号分别是：链式法则 → $\tanh$ 是逐元素作用的，所以 $\dfrac{\partial h_t}{\partial \text{pre}_t}$ 是对角阵 → $\tanh' = 1 - \tanh^2$ 且 $\tanh(\text{pre}_t) = h_t$，而乘一个对角阵就等于逐元素乘。</p>
+<p>拿到 $\text{pre}_t$ 的梯度之后，再往上一步传：</p>
+<p>$$\frac{\partial L}{\partial h_{t-1}} = \frac{\partial L}{\partial \text{pre}_t} W_h$$</p>
+<p>一路展开到第一个词，就是<strong>连乘</strong>：</p>
+<p>$$\frac{\partial L}{\partial h_0} = \frac{\partial L}{\partial h_3} \prod_{t=3}^{1} \mathrm{diag}(1 - h_t^2)\, W_h$$</p>
+<p>取 $\|\partial L/\partial h_3\| = 1$（loss 的正常量级），逐步往回传：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>传到</th>
+<th>乘的是</th>
+<th>剩下多少</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>t=3</td>
+<td>—</td>
+<td>1.000</td>
+</tr>
+<tr>
+<td>t=2</td>
+<td>diag(0.968, 0.051)·$W_h$</td>
+<td>0.684</td>
+</tr>
+<tr>
+<td>t=1</td>
+<td>diag(0.584, <strong>0.015</strong>)·$W_h$</td>
+<td>0.200</td>
+</tr>
+<tr>
+<td>t=0</td>
+<td>diag(0.034, 0.697)·$W_h$</td>
+<td>0.0715</td>
+</tr>
+</tbody>
+</table></div>
+<p>落到词向量上：最远的<code>很高兴</code>拿到 0.057，最近的<code>茂茂雨</code>拿到 0.968，<strong>差 17 倍</strong>。<br/>
+但是 17 倍也不算什么，0.057 依旧是可以正常使用的梯度大小。那么看看序列长度会带来什么样的影响。又上面0.0715可以得到一个粗略的连乘衰减因子（$0.0715^{1/3} = 0.415$），然后我们可以计算得到：</p>
+<p>$$0.415^{3} \approx 7\times10^{-2} \quad 0.415^{15} \approx 2\times10^{-6} \quad 0.415^{31} \approx 1.5\times10^{-12}$$</p>
+<p>第一个数就是上表最后一行的 0.0715，说明这个粗估靠谱；后两个才是重点。</p>
+<p>当序列长度到达 32 个词的时候，第 1 个词的梯度大小掉到 $9.9\times10^{-13}$。而参数更新一般是 <code>学习率 × 梯度</code>，lr 取 1e-3 的话，这一步更新量 1e-15，<strong>掉到 float32 能表示的精度以下了</strong>——这条通路等于完全不更新，死掉。</p>
+<p>其实梯度问题可以解决，已经有LSTM、GRU之类的方法，用门控开一条不过 tanh 的通路，让梯度能直传。但这类框架还有个最大的问题是必须一步步走、没法并行。</p>
+<h3 id="attention-处理此序列的情况">Attention 处理此序列的情况</h3>
+<p>先看看最简单的<strong>单头 Self-Attention</strong></p>
+<h4>定义</h4>
+<p>这一段会用到三个维度，先摆清楚，<strong>它们是三个不同的东西</strong>：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>符号</th>
+<th>是什么</th>
+<th>本例</th>
+<th>GPT-2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$T$</td>
+<td>句子有几个词</td>
+<td>4</td>
+<td>2048</td>
+</tr>
+<tr>
+<td>$d$</td>
+<td>输入的词向量几维</td>
+<td>2</td>
+<td>768</td>
+</tr>
+<tr>
+<td>$d_k$</td>
+<td>$Q$ / $K$ / $V$ 几维</td>
+<td>2</td>
+<td>64（单头）</td>
+</tr>
+</tbody>
+</table></div>
+<p>$d_k$ 的下标 $k$ 是 Key 的 k，<strong>不是位置索引</strong>，和第几个词没有任何关系。本例里 $d = d_k$ 所以看不出区别，真实配置里两者差 12 倍。</p>
+<p>$X$ 的形状是 $(T, d)$，<strong>一行一个词</strong>。下文用小写表示「某一行」：$x_j$ 是 $X$ 的第 $j$ 行（$d$ 维行向量），$z_i$ 是 $Z$ 的第 $i$ 行（$d_k$ 维行向量）——都是向量，不是一个数。</p>
+<p>$Q$、$K$、$V$ 的含义：Query（查询）、Key（键）、Value（值），形状都是 $(T, d_k)$——每个词各有一份。</p>
+<p>$W_Q$、$W_K$、$W_V$ 的含义：三个可学习矩阵，把同一个词分别投影成「拿去问的」「等着被问的」「被选中后交出去的」三份表示，形状都是 $(d, d_k)$，读作「$d$ 维进、$d_k$ 维出」，<strong>和句子多长无关</strong>。</p>
+<h4>模型框架</h4>
+<p>在这一层网络中，$Z = \alpha V = \alpha X W_V$ 就完成了 4 个词之间的全连接。</p>
+<figure class=""><img alt="00b_attn_connect.png" height="1538" loading="lazy" src="../../assets/img/rn01-attention/00b_attn_connect.png" width="1502"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class=""><img alt="00a_attn_structure.png" height="2056" loading="lazy" src="../../assets/img/rn01-attention/00a_attn_structure.png" width="1434"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class=""><img alt="02a_scores.png" height="2485" loading="lazy" src="../../assets/img/rn01-attention/02a_scores.png" width="1369"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class=""><img alt="02b_softmax.png" height="2560" loading="lazy" src="../../assets/img/rn01-attention/02b_softmax.png" width="1509"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<blockquote>
+<p><strong>既然说到单层的“全连接”，为什么不直接用MLP呢？</strong></p>
+<p>其实仔细观察两者的形式，可以注意到，Self-Attention有个和 MLP 的根本区别：<strong>$\alpha$ 是算出来的，不是学出来的</strong>。MLP 里 $y_i = \sum_j W_{ij} x_j$（此处省略一下激活函数），「位置 $j$ 对位置 $i$ 贡献多少」是 $W_{ij}$ 这个参数，训练完就是常数——输入变了输出当然跟着变，但那个<strong>系数</strong>不变。这里的 $\alpha_{ij}$ 本身就由 $X$ 现算，换一句话，整张系数表都换了。</p>
+</blockquote>
+<blockquote>
+<p><strong>为什么$\alpha$中明明$QK^{T}=XW_Q {W_K}^TX^T$，不直接使用一个$W_{QK}=W_Q {W_K}^T$呢？</strong></p>
+<p>数学上其实是一致的，但 $W_{QK}$ 的形状是 $(d, d)$</p>
+<p>以 GPT-2 为例，$d = 768$、单头 $d_k = 64$：合成一个是 $768\times768 \approx 59$ 万个参数，拆成两个是 $2\times768\times64 \approx 9.8$ 万个。</p>
+<p>也就是说，$W_{QK}$的的秩最多有 $d = 768$，而 $W_Q W_K^\top$ 这个乘积的<strong>秩最多只有 $d_k = 64$</strong>（线性代数中简单的线性组合）。也就是实际合成的那 59 万个数，实际能表达的最多只有 64 维的特征向量的线性组合，$W_{QK}$中剩下的自由度全是白给的。算力上同理：$T=2048$ 时合成约 44 亿次乘加、拆开约 4.7 亿，<strong>差 9 倍</strong>。</p>
+<p>所以 $W_Q$ 和 $W_K$ 不是两个独立的东西，它俩就是同一个矩阵的「瘦身分解」。我一开始觉得拆开是多此一举，但其实合并才是浪费。</p>
+</blockquote>
+<h4>序列间信息通信关系</h4>
+<p>回到开头那个问题，远距离通信到底通没通？可以看看 $\alpha$ 的最后一行，也就是「茂茂雨」在看谁：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>看的是</th>
+<th>很高兴</th>
+<th>认识你</th>
+<th>爱玩的</th>
+<th>茂茂雨</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>权重 $\alpha$</td>
+<td>0.69</td>
+<td>0.28</td>
+<td>0.01</td>
+<td>0.02</td>
+</tr>
+</tbody>
+</table></div>
+<p>四个权重不为0，至于这个大小就纯巧合（图上显示的 <code>0.00</code> 只是保留两位小数的结果，真值约 0.002），但也说明了即使是最远的两个词之间也能够保留了很大的权重。</p>
+<p>虽然此时的权重中有不少都很小，梯度和权重在这里也并不等价，但还是完整地将前后传播写出来看看形式会更加放心。</p>
+<p>前向一层就三步：</p>
+<p>$$Q = XW_Q, \quad K = XW_K, \quad V = XW_V$$</p>
+<p>$$S = \frac{QK^\top}{\sqrt{d_k}}, \quad \alpha = \mathrm{softmax}(S), \quad Z = \alpha V$$</p>
+<p>反向先只看最直接的那条路（经 $V$）。$X$ 有三条路影响 loss：$X\to Q$、$X\to K$、$X\to V$。把三条路各自贡献的那一份记作 $G_Q$、$G_K$、$G_V$，都和 $X$ 同形状，定义为</p>
+<p>$$(G_V)_{jc} \;\equiv\; \sum_{i,r} \frac{\partial L}{\partial V_{ir}}\,\frac{\partial V_{ir}}{\partial X_{jc}}
+\qquad G_Q,\ G_K\ \text{同理}$$</p>
+<p>$$\frac{\partial L}{\partial X} = G_Q + G_K + G_V$$</p>
+<p>下面只推 $G_V$ 这一份。下标约定：<strong>行号</strong>用 $i$（输出词）和 $j$（输入词），都取 $1 \sim T$；<strong>列号</strong>用 $r$（$Z$、$V$ 的列，取 $1 \sim d_k$）和 $c$（$X$ 的列，取 $1 \sim d$）。</p>
+<p>$Z = \alpha V$ ，按照线性代数的矩阵计算方法，拆开写就是：</p>
+<p>$$Z_{ir} = \sum_k \alpha_{ik}\, V_{kr}$$</p>
+<p>对 $Z$ 的每个分量用链式法则，代入 $\partial Z_{ir}/\partial V_{jr} = \alpha_{ij}$，求和跑的下标 $i$ 是 $\alpha$ 的<strong>行</strong>，写回矩阵形式就带个转置：</p>
+<p>$$\frac{\partial L}{\partial V_{jr}}
+= \sum_i \frac{\partial L}{\partial Z_{ir}}\,\frac{\partial Z_{ir}}{\partial V_{jr}}
+= \sum_i \frac{\partial L}{\partial Z_{ir}}\,\alpha_{ij}
+\quad\Longrightarrow\quad
+\frac{\partial L}{\partial V} = \alpha^\top \frac{\partial L}{\partial Z}$$</p>
+<p>同理，$V = X W_V$ 拆开写是：</p>
+<p>$$V_{ir} = \sum_c X_{ic}\,(W_V)_{cr}$$</p>
+<p>$V$ 的第 $i$ 行只由 $X$ 的第 $i$ 行算出来，所以 $X_{jc}$ 只影响 $V$ 的第 $j$ 行——定义式里对 $i$ 的求和塌成 $i=j$ 一项，只剩对 $r$ 求和：</p>
+<p>$$(G_V)_{jc}
+= \sum_r \frac{\partial L}{\partial V_{jr}}\,\frac{\partial V_{jr}}{\partial X_{jc}}
+= \sum_r \frac{\partial L}{\partial V_{jr}}\,(W_V)_{cr}
+\quad\Longrightarrow\quad
+G_V = \frac{\partial L}{\partial V}\, W_V^\top$$</p>
+<p>代进可以得到：</p>
+<p>$$G_V
+= \underbrace{\left(\alpha^\top \frac{\partial L}{\partial Z}\right)}_{\partial L / \partial V} W_V^\top$$</p>
+<p>再取第 $j$ 行，就是第 $j$ 个词在$V$通路拿到的梯度：</p>
+<p>$$(G_V)_{j\cdot} = \left(\sum_i \alpha_{ij}\,\frac{\partial L}{\partial z_i}\right) W_V^\top$$</p>
+<p>（$(G_V)_{j\cdot}$ 是 $G_V$ 的第 $j$ 行。）</p>
+<p>仔细观察括号内可以发现：无论第$j$行的词离某个词多远，其梯度都会进入到这个求和中，而且$\alpha$严格不为0，没有"太远了会因为梯度消失而传不到"这种情况。</p>
+<h2 id="小结">小结</h2>
+<p>回顾三类model：</p>
+<ul>
+<li><strong>CNN</strong>：要堆多层或大卷积核，最远那个词才第一次进得来——<strong>隔 2 格以上根本没有通路</strong>。GPT-2 那种规模（2048 词、768 维、核宽 3）得堆 1024 层、18 亿参数、$3.7\times10^{12}$ 次乘加；而 Self-Attention 做同一件事只要 1 层、177 万参数、$1.0\times10^{10}$ 次乘加——<strong>参数差 1024 倍，算力差 369 倍</strong></li>
+<li><strong>RNN</strong>：感受野虽然一开始就能够抵达全部词，但词量扩大到一定程度后梯度直接消失，除此之外，其解决梯度问题的变式也没办法解决“并行问题”</li>
+<li><strong>单头Self-Attention</strong>：一层直连，任意两个词之间的梯度都不为 0，且不随序列内词间的距离衰减</li>
+</ul>
+<p>到这里，我认为对于了解学习Attention在做什么样的事情，以及CNN、RNN为什么在处理语言序列层面被淘汰已经足够了🤔</p>
+<p>下一节打算看看Multi-head Self-Attention（多头自注意力）和Transformer Block</p>
+</div>
+<div class="col"><h4 style="margin-top:3rem">接下来</h4><div class="next-row"><span class="next-card soon"><span class="num">02</span><b>Transformer Block</b><span>纯注意力会秩坍缩，FFN 和残差各自在挡哪一半。</span></span></div></div>
+<div class="col post-foot">本文的图全部由 Lab 里的脚本跑出来，数字可复现。</div>
+</article>
+<footer class="site"><div class="wrap">© Mark · 用实验和图把问题讲清楚</div></footer>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+  if(window.renderMathInElement) renderMathInElement(document.querySelector('article'),{
+    delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],
+    throwOnError:false});
+  // 目录跟随：当前可见的小节高亮
+  const links=[...document.querySelectorAll('.toc a')];
+  const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const io=new IntersectionObserver(es=>{
+    es.forEach(e=>{ if(e.isIntersecting){ links.forEach(a=>a.classList.remove('on'));
+      const a=map.get(e.target.id); if(a) a.classList.add('on'); } });
+  },{rootMargin:'-10% 0px -80% 0px'});
+  document.querySelectorAll('article h2,article h3').forEach(h=>io.observe(h));
+  // 图进入视口时淡入
+  const fo=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting){ e.target.classList.add('in'); fo.unobserve(e.target); }
+  }),{rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('figure').forEach(f=>fo.observe(f));
+
+  // 图放大：网页上图可以看细节，不像卡片受画幅限制
+  const box=document.createElement('div'); box.className='lightbox';
+  box.innerHTML='<img alt=""><button class="lb-close" aria-label="关闭">×</button>';
+  document.body.appendChild(box);
+  const lbImg=box.querySelector('img');
+  const open=src=>{ lbImg.src=src; box.classList.add('on');
+    document.body.style.overflow='hidden'; };
+  const close=()=>{ box.classList.remove('on'); document.body.style.overflow=''; };
+  document.querySelectorAll('figure').forEach(f=>{
+    const im=f.querySelector('img'); if(!im) return;
+    f.addEventListener('click',()=>open(im.currentSrc||im.src));
+  });
+  box.addEventListener('click',close);
+  addEventListener('keydown',e=>{ if(e.key==='Escape') close(); });
+});
+</script>
+</body></html>
