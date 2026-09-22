@@ -293,13 +293,12 @@ figure.in{opacity:1;transform:none}
 .node.in{animation:nodeIn .5s cubic-bezier(.2,.9,.3,1) both;animation-delay:var(--delay,0ms)}
 @keyframes nodeIn{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.node.in{animation:none;opacity:1}}
-.node .dot{fill:var(--surface);stroke:var(--ink);stroke-width:1.4;transition:fill .22s,stroke .22s}
+.node .dot{fill:var(--surface);stroke:var(--ink);stroke-width:1.5;transition:fill .22s,stroke .22s}
 .node.pub .dot{fill:var(--ink);stroke:var(--ink)}
-.node.soon .dot{fill:var(--surface);stroke:var(--arrow);stroke-dasharray:3 3}
+/* 没写的笔记：空心细边。半径只有 6px，虚线在这个尺寸下几乎看不见，用实线 */
+.node.soon .dot{fill:var(--bg);stroke:var(--arrow);stroke-width:1.6}
 .node .halo{fill:var(--hot);opacity:0;transition:opacity .25s}
-.node .num{font-family:var(--mono);font-size:10px;letter-spacing:.02em;fill:var(--bg);pointer-events:none}
-.node.soon .num{fill:var(--mute)}
-.node .label{font-family:var(--sans);font-size:11.5px;fill:var(--ink-2);pointer-events:none;
+.node .label{font-family:var(--sans);font-size:12.5px;fill:var(--ink-2);pointer-events:none;
   transition:fill .22s,font-weight .22s}
 .node:hover .halo,.node.hi .halo{opacity:.14}
 .node:hover .dot,.node.hi .dot{fill:var(--hot);stroke:var(--hot)}
@@ -373,13 +372,20 @@ figure .zoom{
 }
 figure:hover .zoom{opacity:1;transform:none}
 .lightbox{
+  --lb-pad:2.5rem;
   position:fixed;inset:0;z-index:60;display:none;place-items:center;
   background:color-mix(in srgb,#2E2822 82%,transparent);backdrop-filter:blur(6px);
-  padding:2.5rem;cursor:zoom-out;
+  padding:var(--lb-pad);cursor:zoom-out;
 }
-.lightbox.on{display:grid;animation:fade .22s ease}
+/* minmax(0,1fr) 是必须的：grid 行高默认 auto，子元素的 max-height:100% 会和
+   「行高由内容决定」互相依赖，浏览器直接当 none —— 图就以原始尺寸画出来、
+   从顶部 padding 往下溢出，看着像「图偏下」。 */
+.lightbox.on{display:grid;grid-template-rows:minmax(0,1fr);animation:fade .22s ease}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-.lightbox img{max-width:100%;max-height:100%;object-fit:contain;
+.lightbox img{max-width:100%;
+  /* 用绝对值兜底，不依赖父高度的百分比换算 */
+  max-height:calc(100vh - var(--lb-pad) * 2);
+  height:auto;width:auto;object-fit:contain;
   border-radius:10px;background:#FDFBF7;box-shadow:0 30px 80px rgba(0,0,0,.35);
   animation:pop .28s cubic-bezier(.2,.9,.3,1)}
 @keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}

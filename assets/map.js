@@ -12,7 +12,7 @@
   const raw = cfg.notes;
 
   const byId = new Map(raw.map(n => [n.id, n]));
-  const nodes = raw.map(n => ({ ...n, r: n.status === 'published' ? 15 : 11 }));
+  const nodes = raw.map(n => ({ ...n, r: n.status === 'published' ? 8 : 6 }));
   const seen = new Set();
   const links = [];
   const add = (s, t) => {
@@ -75,12 +75,11 @@
     .attr('class', d => 'node in' + (d.status === 'published' ? ' pub' : ' soon'))
     .style('--delay', d => (85 * d.depth + 45 * d.lane) + 'ms');
   node.append('circle').attr('class', 'halo').attr('r', d => d.r + 10);
+  // 节点不写编号：箭头已经表达了先后，圆点里再塞数字是重复、还把点撑大
   node.append('circle').attr('class', 'dot').attr('r', d => d.r);
-  node.append('text').attr('class', 'num').attr('dy', '.34em')
-    .attr('text-anchor', 'middle').text(d => d.num);
   // 标签比节点宽，贴着画布边缘的那些要换对齐方向，否则会伸进 mask 的渐隐区变淡
   node.append('text').attr('class', 'label')
-    .attr('dy', d => d.r + 21).text(d => d.title);
+    .attr('dy', d => d.r + 19).text(d => d.title);
   function alignLabels() {
     const w = stage.clientWidth;
     node.select('text.label')
