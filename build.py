@@ -25,9 +25,26 @@ except ImportError:
 from bs4 import BeautifulSoup
 from PIL import Image
 
-# 显示宽度的公式和 Lab/_shared/themes.py 里的 web_display_width 必须一致
-WEB_SCALE = 0.47
-WEB_W_MIN, WEB_W_MAX, WEB_W_COL = 460, 960, 704
+WEB_W_COL = 704          # 正文栏宽（px），超过它 + 60 的图才挣脱居中
+
+
+def web_width(src_path, w_px, h_px):
+    """这张图在页面上显示多宽。
+
+    这个数**不是这里算的**：它由 save_web() 按「图内正文级字号 → 页面 17px」
+    反推出来，写在图片同目录的 _web.json 里。页面必须原样用，
+    否则图里的字就不再和正文一个基准。清单缺失时退回一个保守的估算。
+    """
+    import json
+    man = src_path.parent / "_web.json"
+    if man.exists():
+        try:
+            rec = json.loads(man.read_text()).get(src_path.name)
+            if rec and rec.get("disp"):
+                return int(rec["disp"])
+        except Exception:
+            pass
+    return int(max(440, min(980, round(w_px * 0.47)))) if w_px else WEB_W_COL
 
 
 # ── 工具 ──────────────────────────────────────────────────────────
@@ -84,13 +101,7 @@ def render_body(md_text, imgdir, rel_img):
             iw, ih = Image.open(dst).size
         except Exception:
             iw, ih = 0, 0
-        # 显示宽度 = 原图宽 × WEB_SCALE，和 themes.web_display_width 同一个公式。
-        # 两边必须一致：出图时按这个宽度兜底字号，页面就得按这个宽度显示，
-        # 否则兜底的 15px 底线在页面上根本不成立。
-        inset = w.strip().isdigit() and int(w) <= 700
-        disp = (WEB_W_MIN if inset
-                else int(max(WEB_W_MIN, min(WEB_W_MAX, round(iw * WEB_SCALE)))) if iw
-                else WEB_W_COL)
+        disp = web_width(p, iw, ih)
         cls = "wide" if disp > WEB_W_COL + 60 else ""   # 只比正文栏宽一点点就别挣脱了，错位不值得
         figs.append((p.name, cls))
         return (f'<figure class="{cls}" style="--w:{disp}px">'
