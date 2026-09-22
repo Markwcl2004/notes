@@ -25,7 +25,7 @@ except ImportError:
 from bs4 import BeautifulSoup
 from PIL import Image
 
-WEB_W_COL = 704          # 正文栏宽（px），超过它 + 60 的图才挣脱居中
+WEB_W_COL = 768          # 正文栏宽（px），和 style.css 的 --measure 对齐
 
 
 def web_width(src_path, w_px, h_px):
@@ -102,7 +102,7 @@ def render_body(md_text, imgdir, rel_img):
         except Exception:
             iw, ih = 0, 0
         disp = web_width(p, iw, ih)
-        cls = "wide" if disp > WEB_W_COL + 60 else ""   # 只比正文栏宽一点点就别挣脱了，错位不值得
+        cls = "wide" if disp > WEB_W_COL + 60 else ""   # 只比正文栏宽一点点就别挣脱，错位不值得
         figs.append((p.name, cls))
         return (f'<figure class="{cls}" style="--w:{disp}px">'
                 f'<img src="{rel_img}/{p.name}" alt="{htmlmod.escape(name.strip())}" '
@@ -132,6 +132,40 @@ def render_body(md_text, imgdir, rel_img):
     for par in soup.find_all("p"):
         if not par.get_text(strip=True) and not par.find(["img", "figure"]):
             par.decompose()
+    # 相邻的图两两配对成一行。宽度和略超页面时按比例缩一点塞进去 ——
+    # 缩到 88% 时图内字从 15px 降到 13.2px，还在可读范围，比让两张图各占一屏强。
+    # 超过这个就别硬并，各自独占。
+    PAGE_W, GAP, SQUEEZE = 1088, 26, 0.88
+    figs = soup.find_all("figure")
+    i = 0
+    while i < len(figs) - 1:
+        a, b = figs[i], figs[i + 1]
+        # 必须是紧挨着的兄弟（中间没有正文），否则并排会打断行文
+        sib = a.find_next_sibling()
+        while sib is not None and not str(sib).strip():
+            sib = sib.find_next_sibling()
+        if sib is not b:
+            i += 1
+            continue
+        get = lambda t: int(re.search(r"--w:(\d+)px", t.get("style") or "--w:640px").group(1))
+        wa, wb = get(a), get(b)
+        total = wa + wb + GAP
+        if total <= PAGE_W / SQUEEZE:
+            k = min(1.0, (PAGE_W - GAP) / (wa + wb))
+            a["style"] = f"--w:{round(wa * k)}px"
+            b["style"] = f"--w:{round(wb * k)}px"
+            row = soup.new_tag("div", attrs={
+                "class": "figrow",
+                "style": f"--rw:{round((wa + wb) * k) + GAP}px"})
+            a.insert_before(row)
+            row.append(a.extract())
+            row.append(b.extract())
+            for t in (a, b):
+                t["class"] = [c for c in (t.get("class") or []) if c != "wide"]
+            i += 2
+        else:
+            i += 1
+
     # 表格加横向滚动容器
     for tb in soup.find_all("table"):
         wrap = soup.new_tag("div", attrs={"class": "table-wrap"})

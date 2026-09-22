@@ -19,8 +19,11 @@
   --sans:"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 
-  --measure:44rem;       /* 正文栏宽 ≈ 40 个汉字/行 */
-  --wide:60rem;          /* 图可以溢出到这个宽度 */
+  /* 排版比例：中文一行 40~46 个字最舒服，48rem ÷ 17px ≈ 45 字。
+     图区比正文栏宽一档，容得下两张并排。 */
+  --measure:48rem;       /* 正文栏 768px ≈ 45 字/行 */
+  --wide:68rem;          /* 图区 1088px，= 两张并排 + 间距 */
+  --fig-gap:1.6rem;      /* 并排图之间 */
   --fs:1.0625rem;        /* 17px */
   --lh:1.85;
 }
@@ -157,10 +160,26 @@ figure img{width:100%;max-width:100%;max-height:124vh;height:auto;
    这是相对小红书卡片的红利，别浪费。 */
 /* ⚠️ 别用 transform:translateX(-50%) 居中：下面淡入动画的 transform:none 会覆盖它，
    图会整个跑到右边。用 margin 算偏移，和 transform 不打架。 */
-/* 每张图的 --w 由 build.py 按「原图宽 × 0.47」算好写进 inline style，
-   和出图时兜底字号用的宽度是同一个数。别在这里改宽度，会让字号底线失效。 */
-figure{--w:704px;width:min(100% , var(--w));margin-inline:auto}
-figure.wide{width:min(100vw - 3rem, var(--w));margin-left:calc(50% - min(100vw - 3rem, var(--w)) / 2)}
+/* 每张图的 --w 由 save_web() 按「图内正文级字 → 页面 15px」反推，写进 inline style。
+   别在这里另算宽度，会破坏图内文字和正文的基准关系。 */
+figure{--w:640px;width:min(100%,var(--w));margin-inline:auto}
+figure.wide{width:min(100vw - 3rem,var(--w));margin-left:calc(50% - min(100vw - 3rem,var(--w)) / 2)}
+
+/* 并排：相邻两张图放得下就并成一行。按各自的 --w 分配宽度，
+   不是硬等分 —— 一张宽一张窄时等分会把窄的那张撑虚。 */
+.figrow{
+  /* 顶对齐：读者从上往下扫，两张图的标题要齐。底对齐会让矮的那张沉到下面去 */
+  display:flex;gap:var(--fig-gap);align-items:flex-start;justify-content:center;
+  width:min(100vw - 3rem,var(--rw,var(--wide)));
+  margin:2.4rem 0 2.4rem calc(50% - min(100vw - 3rem,var(--rw,var(--wide))) / 2);
+}
+.figrow figure{margin:0;flex:0 1 var(--w);width:auto;min-width:0}
+.figrow figure img{width:100%}
+@media (max-width:46rem){
+  .figrow{display:block;width:100%;margin-left:0}
+  .figrow figure{width:min(100%,var(--w));margin:0 auto 1.6rem}
+  .figrow figure:last-child{margin-bottom:0}
+}
 figcaption{
   font-family:var(--mono);font-size:.72rem;line-height:1.6;letter-spacing:.03em;
   color:var(--mute);text-align:center;margin-top:.7rem;
