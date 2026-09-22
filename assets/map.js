@@ -69,19 +69,28 @@
   const link = gLink.selectAll('path').data(links).join('path')
     .attr('class', 'link').attr('marker-end', 'url(#arw)');
 
+  // 入场动画走 CSS（下面设 --delay），不要用 d3.transition 改 opacity：
+  // 无头浏览器/截图工具的虚拟时间不推进 rAF，节点会永远停在 opacity:0。
   const node = gNode.selectAll('g').data(nodes, d => d.id).join('g')
-    .attr('class', d => 'node' + (d.status === 'published' ? ' pub' : ' soon'))
-    .style('opacity', 0);
+    .attr('class', d => 'node in' + (d.status === 'published' ? ' pub' : ' soon'))
+    .style('--delay', d => (85 * d.depth + 45 * d.lane) + 'ms');
   node.append('circle').attr('class', 'halo').attr('r', d => d.r + 10);
   node.append('circle').attr('class', 'dot').attr('r', d => d.r);
   node.append('text').attr('class', 'num').attr('dy', '.34em')
     .attr('text-anchor', 'middle').text(d => d.num);
-  node.append('text').attr('class', 'label').attr('text-anchor', 'middle')
+  // 标签比节点宽，贴着画布边缘的那些要换对齐方向，否则会伸进 mask 的渐隐区变淡
+  node.append('text').attr('class', 'label')
     .attr('dy', d => d.r + 21).text(d => d.title);
-  node.transition().delay(d => 85 * d.depth + 45 * d.lane).duration(520).style('opacity', 1);
+  function alignLabels() {
+    const w = stage.clientWidth;
+    node.select('text.label')
+      .attr('text-anchor', d => d.x < w * 0.18 ? 'start' : d.x > w * 0.82 ? 'end' : 'middle')
+      .attr('dx', d => d.x < w * 0.18 ? -d.r : d.x > w * 0.82 ? d.r : 0);
+  }
 
   // ── 布局：深度 → 横向（宽屏铺得开），同层 → 纵向 ──────────────
-  const PADX = 104, PADY = 96;
+  // PADX 要大于 #stage 左右 mask 的渐隐宽度（3.5vw），不然边上的节点会被吃淡
+  const PADX = 190, PADY = 92;
   function place() {
     W = stage.clientWidth; H = stage.clientHeight;
     const vertical = W < 720;                      // 窄屏翻转成竖排
@@ -120,6 +129,7 @@
       return `M${x1},${y1} A${r},${r} 0 0,1 ${x2},${y2}`;
     });
     node.attr('transform', d => `translate(${d.x},${d.y})`);
+    alignLabels();
   }
 
   // ── 聚焦 ───────────────────────────────────────────────────

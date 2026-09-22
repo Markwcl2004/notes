@@ -27,7 +27,7 @@
   <p class="lede">搜到的说法是「CNN 感受野受限、RNN 梯度衰减」。我想直接跑个实验看看，到底是怎么不够用的。</p>
   <div class="byline"><span>2026-09</span><span>attention · cnn · rnn · 梯度</span></div>
 </div></div>
-<nav class="toc" aria-label="目录"><a href="#why-attention" class="">Why Attention？</a><a href="#cnn-处理此序列的情况" class="lv3">CNN 处理此序列的情况</a><a href="#rnn-处理此序列的情况" class="lv3">RNN 处理此序列的情况</a><a href="#attention-处理此序列的情况" class="lv3">Attention 处理此序列的情况</a><a href="#小结" class="">小结</a></nav>
+<nav class="toc" aria-label="目录"><a href="#why-attention" class="" title="Why Attention？"><span>Why Attention？</span></a><a href="#cnn-处理此序列的情况" class="lv3" title="CNN 处理此序列的情况"><span>CNN 处理此序列的情况</span></a><a href="#rnn-处理此序列的情况" class="lv3" title="RNN 处理此序列的情况"><span>RNN 处理此序列的情况</span></a><a href="#attention-处理此序列的情况" class="lv3" title="Attention 处理此序列的情况"><span>Attention 处理此序列的情况</span></a><a href="#小结" class="" title="小结"><span>小结</span></a></nav>
 <article class="wrap"><div class="col">
 <h2 id="why-attention">Why Attention？</h2>
 <p>当我去搜索为什么需要Attention的时候，搜到的回答是：</p>
@@ -324,6 +324,19 @@ document.addEventListener('DOMContentLoaded',()=>{
       const a=map.get(e.target.id); if(a) a.classList.add('on'); } });
   },{rootMargin:'-10% 0px -80% 0px'});
   document.querySelectorAll('article h2,article h3').forEach(h=>io.observe(h));
+  // 点纲要平滑滚过去，并把 hash 写进地址栏（能分享到具体小节）
+  links.forEach(a=>a.addEventListener('click',e=>{
+    const el=document.getElementById(a.getAttribute('href').slice(1));
+    if(!el) return;
+    e.preventDefault();
+    el.scrollIntoView({behavior:'smooth',block:'start'});
+    history.replaceState(null,'',a.getAttribute('href'));
+  }));
+  // 带 hash 进来时，等图片占位算完再跳，否则会偏
+  if(location.hash){
+    const el=document.getElementById(location.hash.slice(1));
+    if(el) setTimeout(()=>el.scrollIntoView({block:'start'}),120);
+  }
   // 图进入视口时淡入
   const fo=new IntersectionObserver(es=>es.forEach(e=>{
     if(e.isIntersecting){ e.target.classList.add('in'); fo.unobserve(e.target); }

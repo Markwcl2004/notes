@@ -187,6 +187,19 @@ document.addEventListener('DOMContentLoaded',()=>{
       const a=map.get(e.target.id); if(a) a.classList.add('on'); } });
   },{rootMargin:'-10% 0px -80% 0px'});
   document.querySelectorAll('article h2,article h3').forEach(h=>io.observe(h));
+  // 点纲要平滑滚过去，并把 hash 写进地址栏（能分享到具体小节）
+  links.forEach(a=>a.addEventListener('click',e=>{
+    const el=document.getElementById(a.getAttribute('href').slice(1));
+    if(!el) return;
+    e.preventDefault();
+    el.scrollIntoView({behavior:'smooth',block:'start'});
+    history.replaceState(null,'',a.getAttribute('href'));
+  }));
+  // 带 hash 进来时，等图片占位算完再跳，否则会偏
+  if(location.hash){
+    const el=document.getElementById(location.hash.slice(1));
+    if(el) setTimeout(()=>el.scrollIntoView({block:'start'}),120);
+  }
   // 图进入视口时淡入
   const fo=new IntersectionObserver(es=>es.forEach(e=>{
     if(e.isIntersecting){ e.target.classList.add('in'); fo.unobserve(e.target); }
@@ -220,8 +233,10 @@ def build_post(cfg, note, outdir):
     d.mkdir(parents=True, exist_ok=True)
     body, toc = render_body(src.read_text(encoding="utf-8"),
                             outdir / "assets" / "img" / note["id"], "../../assets/img/" + note["id"])
+    # 标题包一层 span：CSS 让它默认收起、hover 整列时滑出（见 style.css 的 .toc）
     toc_html = "".join(
-        f'<a href="#{i}" class="{"lv3" if lv == "h3" else ""}">{htmlmod.escape(t)}</a>'
+        f'<a href="#{i}" class="{"lv3" if lv == "h3" else ""}" title="{htmlmod.escape(t)}">'
+        f'<span>{htmlmod.escape(t)}</span></a>'
         for lv, i, t in toc)
     series = next((s for s in cfg["series"] if s["id"] == note["series"]), {"name": ""})
     tags = " · ".join(note.get("tags", []))
