@@ -43,7 +43,7 @@
 <p>例句：<strong>很高兴认识你爱玩的茂茂雨</strong><br/>
 切成 4 个词：<code>很高兴</code> 、<code>认识你</code> 、<code>爱玩的</code> 、<code>茂茂雨</code><br/>
 每个词用一个 2 维向量表示（随便像下面这样设一个），整句话就是一个 <strong>4 × 2 的矩阵</strong>:</p>
-<figure class="inset"><img alt="01_x_matrix.png" height="1037" loading="lazy" src="../../assets/img/rn01-attention/01_x_matrix.png" width="931"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="" style="--w:460px"><img alt="01_x_matrix.png" height="1041" loading="lazy" src="../../assets/img/rn01-attention/01_x_matrix.png" width="931"/><button aria-label="放大看" class="zoom">⤢</button></figure>
 <h3 id="cnn-处理此序列的情况">CNN 处理此序列的情况</h3>
 <p>但 PyTorch 的 <code>Conv1d</code> 要的是 <code>(batch, 每个词的向量维度, 词的个数)</code>，<strong>需要转置一下</strong>。卷积核设为 <code>conv = nn.Conv1d(n, n, kernel_size=3, padding=1, bias=False)</code></p>
 <blockquote>
@@ -53,21 +53,21 @@ kernel_size=3：窗口一次盖 3 个位置。<br/>
 padding=1：两端各补 1 列 0，让 4 个词进、还是 4 个数出。<br/>
 bias=False：算完不再加常数项。</p>
 </blockquote>
-<figure class=""><img alt="01_conv_walkthrough.png" height="1808" loading="lazy" src="../../assets/img/rn01-attention/01_conv_walkthrough.png" width="1321"/><button aria-label="放大看" class="zoom">⤢</button></figure>
-<figure class=""><img alt="04_number_tower.png" height="2060" loading="lazy" src="../../assets/img/rn01-attention/04_number_tower.png" width="1572"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="" style="--w:621px"><img alt="01_conv_walkthrough.png" height="1808" loading="lazy" src="../../assets/img/rn01-attention/01_conv_walkthrough.png" width="1321"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="" style="--w:739px"><img alt="04_number_tower.png" height="2060" loading="lazy" src="../../assets/img/rn01-attention/04_number_tower.png" width="1572"/><button aria-label="放大看" class="zoom">⤢</button></figure>
 <p>如果你同时关注一下<code>第二层的“10”</code>和<code>第三层的“3”</code>，往回追溯，你就会发现<code>第二层的“10”</code>仅包含了<code>认识你</code> 、<code>爱玩的</code> 、<code>茂茂雨</code>，而只有到<code>第三层的“3”</code>才完全得到了这组序列的全部信息。</p>
 <p><strong>在这个场景下，感受野和梯度能否传达其实是一回事</strong>。<code>很高兴</code> 不在 <code>茂茂雨</code> 的感受野里，意思就是不管 <code>很高兴</code> 怎么改，<code>茂茂雨</code> 那个输出都纹丝不动——这正是“梯度等于 0”。所以 CNN 的痛点就在于“<strong>层数低，感受野小，够不到</strong>”。</p>
 <p>但反过来不成立：够得到不等于传得动。下面的 RNN 就是够得到但传不动的典型。<br/>
 然而，想要层数少，就得增加卷积核的大小。那放到真实规模上是个什么概念？按 GPT-2 那种配置粗算一下：序列 2048 个词、词向量 768 维、核宽还是 3。<strong>感受野每层只往外扩 1 个词，要够到最远那一个得堆 1024 层</strong>，参数量约 18 亿、一次前向约 $3.7\times10^{12}$ 次乘加。</p>
 <h3 id="rnn-处理此序列的情况">RNN 处理此序列的情况</h3>
 <p>看一下RNN的网络结构：</p>
-<figure class="inset"><img alt="00_rnn_overview.png" height="1678" loading="lazy" src="../../assets/img/rn01-attention/00_rnn_overview.png" width="1246"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="" style="--w:460px"><img alt="00_rnn_overview.png" height="1678" loading="lazy" src="../../assets/img/rn01-attention/00_rnn_overview.png" width="1246"/><button aria-label="放大看" class="zoom">⤢</button></figure>
 <p>这是个很漂亮的结构，而且通过一个循环迭代的方式，就能将词与词之间的联系训练更新到同一套反复使用参数$W_x$和$W_h$里面，<br/>
 真实推理的时候，只需要一份 RNN 单元，加上一个来自上一个词的记忆缓存就够了。发现它还有一个问题：batch 维度其实是能并行的，不能并行的是<strong>时间步</strong>——第 $t$ 步必须等第 $t-1$ 步的 $h$ 算完才能开始。句子多长就得串行多少步，GPU 在这件事上使不上劲。<br/>
 再看看前面搜到的“信息衰减”是怎么回事，瞅一眼 $\tanh$ 及其导数的图像：</p>
-<figure class=""><img alt="03_tanh_squash.png" height="2402" loading="lazy" src="../../assets/img/rn01-attention/03_tanh_squash.png" width="1767"/><button aria-label="放大看" class="zoom">⤢</button></figure>
-<figure class=""><img alt="01_one_step.png" height="1943" loading="lazy" src="../../assets/img/rn01-attention/01_one_step.png" width="1397"/><button aria-label="放大看" class="zoom">⤢</button></figure>
-<figure class="wide"><img alt="02_unroll.png" height="1365" loading="lazy" src="../../assets/img/rn01-attention/02_unroll.png" width="1662"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="wide" style="--w:830px"><img alt="03_tanh_squash.png" height="2402" loading="lazy" src="../../assets/img/rn01-attention/03_tanh_squash.png" width="1767"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="" style="--w:657px"><img alt="01_one_step.png" height="1943" loading="lazy" src="../../assets/img/rn01-attention/01_one_step.png" width="1397"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="wide" style="--w:781px"><img alt="02_unroll.png" height="1365" loading="lazy" src="../../assets/img/rn01-attention/02_unroll.png" width="1662"/><button aria-label="放大看" class="zoom">⤢</button></figure>
 在以上这个例子的计算当中，可以看出当出现接近+-1的h数值时，会得到一个非常小的导数值0.015，但是好像也没有小到会让信息损失🤔，进一步看看反向传播时候的计算情况：
 先把用到的符号列一下，免得自己都看糊涂。
 
@@ -227,10 +227,10 @@ bias=False：算完不再加常数项。</p>
 <p>$W_Q$、$W_K$、$W_V$ 的含义：三个可学习矩阵，把同一个词分别投影成「拿去问的」「等着被问的」「被选中后交出去的」三份表示，形状都是 $(d, d_k)$，读作「$d$ 维进、$d_k$ 维出」，<strong>和句子多长无关</strong>。</p>
 <h4>模型框架</h4>
 <p>在这一层网络中，$Z = \alpha V = \alpha X W_V$ 就完成了 4 个词之间的全连接。</p>
-<figure class=""><img alt="00b_attn_connect.png" height="1538" loading="lazy" src="../../assets/img/rn01-attention/00b_attn_connect.png" width="1502"/><button aria-label="放大看" class="zoom">⤢</button></figure>
-<figure class=""><img alt="00a_attn_structure.png" height="2056" loading="lazy" src="../../assets/img/rn01-attention/00a_attn_structure.png" width="1434"/><button aria-label="放大看" class="zoom">⤢</button></figure>
-<figure class=""><img alt="02a_scores.png" height="2485" loading="lazy" src="../../assets/img/rn01-attention/02a_scores.png" width="1369"/><button aria-label="放大看" class="zoom">⤢</button></figure>
-<figure class=""><img alt="02b_softmax.png" height="2560" loading="lazy" src="../../assets/img/rn01-attention/02b_softmax.png" width="1509"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="" style="--w:706px"><img alt="00b_attn_connect.png" height="1538" loading="lazy" src="../../assets/img/rn01-attention/00b_attn_connect.png" width="1502"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="" style="--w:674px"><img alt="00a_attn_structure.png" height="2056" loading="lazy" src="../../assets/img/rn01-attention/00a_attn_structure.png" width="1434"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="" style="--w:643px"><img alt="02a_scores.png" height="2485" loading="lazy" src="../../assets/img/rn01-attention/02a_scores.png" width="1369"/><button aria-label="放大看" class="zoom">⤢</button></figure>
+<figure class="" style="--w:709px"><img alt="02b_softmax.png" height="2560" loading="lazy" src="../../assets/img/rn01-attention/02b_softmax.png" width="1509"/><button aria-label="放大看" class="zoom">⤢</button></figure>
 <blockquote>
 <p><strong>既然说到单层的“全连接”，为什么不直接用MLP呢？</strong></p>
 <p>其实仔细观察两者的形式，可以注意到，Self-Attention有个和 MLP 的根本区别：<strong>$\alpha$ 是算出来的，不是学出来的</strong>。MLP 里 $y_i = \sum_j W_{ij} x_j$（此处省略一下激活函数），「位置 $j$ 对位置 $i$ 贡献多少」是 $W_{ij}$ 这个参数，训练完就是常数——输入变了输出当然跟着变，但那个<strong>系数</strong>不变。这里的 $\alpha_{ij}$ 本身就由 $X$ 现算，换一句话，整张系数表都换了。</p>

@@ -25,6 +25,10 @@ except ImportError:
 from bs4 import BeautifulSoup
 from PIL import Image
 
+# 显示宽度的公式和 Lab/_shared/themes.py 里的 web_display_width 必须一致
+WEB_SCALE = 0.47
+WEB_W_MIN, WEB_W_MAX, WEB_W_COL = 460, 960, 704
+
 
 # ── 工具 ──────────────────────────────────────────────────────────
 def find_img(name):
@@ -80,15 +84,16 @@ def render_body(md_text, imgdir, rel_img):
             iw, ih = Image.open(dst).size
         except Exception:
             iw, ih = 0, 0
-        # 呈现规则（按图自己的形状定，别按 md 里给卡片标的宽度）：
-        #   md 标了小宽度   → inset，窄一点，和正文同一节奏
-        #   横图 (w ≥ h)    → wide，挣脱到比正文栏宽，图里的字才够大
-        #   竖图 (h > w)    → 正文栏宽；挣脱了也会被高度顶回去，反而更窄
-        ratio = (iw / ih) if (iw and ih) else 1
-        cls = ("inset" if (w.strip().isdigit() and int(w) <= 700)
-               else "wide" if ratio >= 1.0 else "")
+        # 显示宽度 = 原图宽 × WEB_SCALE，和 themes.web_display_width 同一个公式。
+        # 两边必须一致：出图时按这个宽度兜底字号，页面就得按这个宽度显示，
+        # 否则兜底的 15px 底线在页面上根本不成立。
+        inset = w.strip().isdigit() and int(w) <= 700
+        disp = (WEB_W_MIN if inset
+                else int(max(WEB_W_MIN, min(WEB_W_MAX, round(iw * WEB_SCALE)))) if iw
+                else WEB_W_COL)
+        cls = "wide" if disp > WEB_W_COL + 60 else ""   # 只比正文栏宽一点点就别挣脱了，错位不值得
         figs.append((p.name, cls))
-        return (f'<figure class="{cls}">'
+        return (f'<figure class="{cls}" style="--w:{disp}px">'
                 f'<img src="{rel_img}/{p.name}" alt="{htmlmod.escape(name.strip())}" '
                 f'loading="lazy" width="{iw}" height="{ih}">'
                 f'<button class="zoom" aria-label="放大看">⤢</button>'
