@@ -3,6 +3,9 @@
 米白主题的静态笔记站，从 Obsidian vault 里的 md 生成，发布到 GitHub Pages。
 小红书只做引流：那边发几张卡片图 + 一句钩子，正文放这里。
 
+线上：https://markwcl2004.github.io/notes/
+**这份讲怎么用；为什么这么定、踩过什么坑在 [SOP-排版.md](SOP-排版.md)。**
+
 ```
 vla-notes/
 ├── notes.json          ← 内容清单（唯一要手写的地方）
